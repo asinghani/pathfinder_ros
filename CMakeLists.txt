@@ -1,11 +1,22 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(pathfinder_ros)
 
-find_package(catkin REQUIRED COMPONENTS roscpp std_msgs geometry_msgs nav_msgs)
-
-catkin_package()
+find_package(catkin REQUIRED COMPONENTS roscpp std_msgs geometry_msgs nav_msgs message_generation)
 
 include_directories(include ${catkin_INCLUDE_DIRS})
+
+add_message_files(
+    FILES
+    Path.msg
+    PathSegment.msg
+)
+
+generate_messages(
+    DEPENDENCIES
+    std_msgs
+)
+
+catkin_package(CATKIN_DEPENDS message_runtime)
 
 # Include Pathfinder headers
 include_directories(include ${CMAKE_SOURCE_DIR}/pathfinder_ros/lib/pathfinder/include)
