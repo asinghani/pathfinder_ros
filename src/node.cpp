@@ -5,6 +5,8 @@
 #include "geometry_msgs/Pose.h"
 #include "geometry_msgs/PoseStamped.h"
 #include "geometry_msgs/Quaternion.h"
+#include "pathfinder_ros/Path.h"
+#include "pathfinder_ros/PathSegment.h"
 #include "nav_msgs/Path.h"
 using namespace ros;
 
@@ -14,6 +16,8 @@ using namespace ros;
 #include <vector>
 using namespace std;
 
+#define PI 3.1415926535
+
 int sampleCount;
 float timeStep;
 float maxVel;
@@ -21,6 +25,8 @@ float maxAccel;
 float maxJerk;
 
 Publisher pathPublisher;
+Publisher segmentsPublisher;
+Publisher pathSegmentsPublisher;
 
 double quaternionToYaw(geometry_msgs::Quaternion quaternion) {
     float x = quaternion.x;
@@ -41,11 +47,18 @@ double quaternionToYaw(geometry_msgs::Quaternion quaternion) {
 void waypointsUpdate(const geometry_msgs::PoseArray::ConstPtr& msg) {
     cout << "Generating Path" << endl;
 
-	int NUM_POINTS = 3;
+	int NUM_POINTS = msg->poses.size();
     Waypoint *points = (Waypoint*) malloc(sizeof(Waypoint) * NUM_POINTS);
 
-    for(int i = 0; i < msg->poses.size(); i++) {
-        Waypoint pt = {msg->poses[i].position.x, msg->poses[i].position.y, quaternionToYaw(msg->poses[i].orientation)};
+    for(int i = 0; i < NUM_POINTS; i++) {
+        float theta = quaternionToYaw(msg->poses[i].orientation);
+        
+        while(theta < 0.0) {
+            theta += 2.0 * PI;
+        }
+        cout << theta << endl;
+
+        Waypoint pt = {msg->poses[i].position.x, msg->poses[i].position.y, theta};
         points[i] = pt;
     }
 
@@ -59,16 +72,22 @@ void waypointsUpdate(const geometry_msgs::PoseArray::ConstPtr& msg) {
     pathfinder_generate(&candidate, trajectory);
    
     vector<geometry_msgs::PoseStamped> pathArr;
+    vector<geometry_msgs::Pose> segmentsArr;
+    vector<pathfinder_ros::PathSegment> pathSegmentsArr;
 
     for (int i = 0; i < trajectory_length; i++) {
         Segment s = trajectory[i];
         
-        geometry_msgs::PoseStamped seg;
-        seg.header = msg->header;
-        seg.pose.orientation = tf::createQuaternionMsgFromYaw(s.heading);
-        seg.pose.position.x = s.x;
-        seg.pose.position.y = s.y;
-        seg.pose.position.z = 0.0;
+        geometry_msgs::Pose seg;
+        geometry_msgs::PoseStamped segStamped;
+
+        seg.orientation = tf::createQuaternionMsgFromYaw(s.heading);
+        seg.position.x = s.x;
+        seg.position.y = s.y;
+        seg.position.z = 0.0;
+
+        segStamped.header = msg->header;
+        segStamped.pose = seg;
 
         // printf("Time Step: %f\n", s.dt);
         // printf("Coords: (%f, %f)\n", s.x, s.y);
@@ -78,14 +97,27 @@ void waypointsUpdate(const geometry_msgs::PoseArray::ConstPtr& msg) {
         // printf("Jerk (Acceleration per Second): %f\n", s.jerk);
         // printf("Heading (radians): %f\n", s.heading);
         
-        pathArr.push_back(seg);
+        pathArr.push_back(segStamped);
+        segmentsArr.push_back(seg);
     }
+
+    geometry_msgs::PoseArray segments;
     nav_msgs::Path path;
+    pathfinder_ros::Path pathObj;
+
+    segments.header = msg->header;
+    segments.poses = segmentsArr;
+
     path.header = msg->header;
     path.poses = pathArr;
 
+    pathObj.header = msg->header;
+    pathObj.path = pathSegmentsArr;
+
     cout << "Publishing path with length " << pathArr.size() << endl;
     pathPublisher.publish(path);
+    segmentsPublisher.publish(segments);
+    pathSegmentsPublisher.publish(pathObj);
 
     free(trajectory);
 }
@@ -114,45 +146,11 @@ int main(int argc, char **argv) {
     Subscriber sub = n.subscribe("/pathfinder_ros/waypoints", 1000, waypointsUpdate);
 
     // Primarily for visualization
-    pathPublisher = n.advertise<nav_msgs::Path>("/pathfinder_ros/path", 1);
+    pathPublisher = n.advertise<nav_msgs::Path>("/pathfinder_ros/path", 1000);
+    segmentsPublisher = n.advertise<geometry_msgs::PoseArray>("/pathfinder_ros/segments", 1000);
+    pathSegmentsPublisher = n.advertise<pathfinder_ros::Path>("/pathfinder_ros/path_references", 1000);
 
     ros::spin();
 
     return 0;
 }
-
-// Pathfinder code
-/*
-	int POINT_LENGTH = 3;
-
-    Waypoint *points = (Waypoint*)malloc(sizeof(Waypoint) * POINT_LENGTH);
-
-    Waypoint p1 = { -4, -1, d2r(45) };      // Waypoint @ x=-4, y=-1, exit angle=45 degrees
-    Waypoint p2 = { -1, 2, 0 };             // Waypoint @ x=-1, y= 2, exit angle= 0 radians
-    Waypoint p3 = {  2, 4, 0 };             // Waypoint @ x= 2, y= 4, exit angle= 0 radians
-    points[0] = p1;
-    points[1] = p2;
-    points[2] = p3;
-    
-    TrajectoryCandidate candidate;
-    pathfinder_prepare(points, POINT_LENGTH, FIT_HERMITE_CUBIC, PATHFINDER_SAMPLES_FAST, 0.05, 15.0, 10000000.0, 1000000000.0, &candidate);
-
-    int length = candidate.length;
-    Segment *trajectory = (Segment*) malloc(length * sizeof(Segment));
-    
-    pathfinder_generate(&candidate, trajectory);
-   
-    int i;
-    for (i = 0; i < 2; i++) {
-        Segment s = trajectory[i];
-        printf("Time Step: %f\n", s.dt);
-        printf("Coords: (%f, %f)\n", s.x, s.y);
-        printf("Position (Distance): %f\n", s.position);
-        printf("Velocity: %f\n", s.velocity);
-        printf("Acceleration: %f\n", s.acceleration);
-        printf("Jerk (Acceleration per Second): %f\n", s.jerk);
-        printf("Heading (radians): %f\n", s.heading);
-    }
-
-    free(trajectory);
-*/
