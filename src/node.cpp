@@ -1,7 +1,43 @@
+#include "ros/ros.h"
+#include "std_msgs/String.h"
+using namespace ros;
+
 #include <pathfinder.h>
 
-int main(int argc, char **argv) {
+#include <iostream>
+using namespace std;
 
+int sampleCount;
+float timeStep;
+float maxVel;
+float maxAccel;
+float maxJerk;
+
+int main(int argc, char **argv) {
+    ros::init(argc, argv, "pathfinder_node");
+    NodeHandle n;
+    NodeHandle params("~");
+
+    sampleCount = params.param("sample_count", 10000);
+    timeStep = params.param("time_step", 0.02);
+    maxVel = params.param("max_velocity", 0.8);
+    maxAccel = params.param("max_acceleration", 100000.0);
+    maxJerk = params.param("max_jerk", 100000.0);
+
+    cout << "====================================================" << endl;
+    cout << "Pathfinder Config: " << endl;
+    cout << "Sample Count: " << sampleCount << endl;
+    cout << "Time Step: " << timeStep << endl;
+    cout << "Max Velocity: " << maxVel << endl;
+    cout << "Max Acceleration: " << maxAccel << endl;
+    cout << "Max Jerk: " << maxJerk << endl;
+    cout << "====================================================" << endl;
+
+    return 0;
+}
+
+// Pathfinder code
+/*
 	int POINT_LENGTH = 3;
 
     Waypoint *points = (Waypoint*)malloc(sizeof(Waypoint) * POINT_LENGTH);
@@ -34,6 +70,4 @@ int main(int argc, char **argv) {
     }
 
     free(trajectory);
-
-    return 0;
-}
+*/
