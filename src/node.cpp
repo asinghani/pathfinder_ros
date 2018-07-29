@@ -1,5 +1,7 @@
 #include "ros/ros.h"
 #include "std_msgs/String.h"
+#include "geometry_msgs/PoseArray.h"
+#include "geometry_msgs/Pose.h"
 using namespace ros;
 
 #include <pathfinder.h>
@@ -13,6 +15,11 @@ float maxVel;
 float maxAccel;
 float maxJerk;
 
+void waypointsUpdate(const geometry_msgs::PoseArray::ConstPtr& msg) {
+    cout << msg->poses.size() << endl;
+    cout << msg->poses[0].position.x << endl;
+}
+
 int main(int argc, char **argv) {
     ros::init(argc, argv, "pathfinder_node");
     NodeHandle n;
@@ -24,6 +31,7 @@ int main(int argc, char **argv) {
     maxAccel = params.param("max_acceleration", 100000.0);
     maxJerk = params.param("max_jerk", 100000.0);
 
+    // TODO: replace with proper rosout print
     cout << "====================================================" << endl;
     cout << "Pathfinder Config: " << endl;
     cout << "Sample Count: " << sampleCount << endl;
@@ -32,6 +40,10 @@ int main(int argc, char **argv) {
     cout << "Max Acceleration: " << maxAccel << endl;
     cout << "Max Jerk: " << maxJerk << endl;
     cout << "====================================================" << endl;
+
+    Subscriber sub = n.subscribe("/pathfinder_ros/waypoints", 1000, waypointsUpdate);
+
+    ros::spin();
 
     return 0;
 }
