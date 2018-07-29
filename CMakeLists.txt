@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(pathfinder_ros)
 
-find_package(catkin REQUIRED COMPONENTS roscpp std_msgs geometry_msgs)
+find_package(catkin REQUIRED COMPONENTS roscpp std_msgs geometry_msgs nav_msgs)
 
 catkin_package()
 
