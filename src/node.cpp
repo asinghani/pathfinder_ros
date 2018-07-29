@@ -42,8 +42,6 @@ double quaternionToYaw(geometry_msgs::Quaternion quaternion) {
     return yaw;
 }
 
-
-
 void waypointsUpdate(const geometry_msgs::PoseArray::ConstPtr& msg) {
     cout << "Generating Path" << endl;
 
@@ -56,7 +54,6 @@ void waypointsUpdate(const geometry_msgs::PoseArray::ConstPtr& msg) {
         while(theta < 0.0) {
             theta += 2.0 * PI;
         }
-        cout << theta << endl;
 
         Waypoint pt = {msg->poses[i].position.x, msg->poses[i].position.y, theta};
         points[i] = pt;
@@ -80,6 +77,7 @@ void waypointsUpdate(const geometry_msgs::PoseArray::ConstPtr& msg) {
         
         geometry_msgs::Pose seg;
         geometry_msgs::PoseStamped segStamped;
+        pathfinder_ros::PathSegment pathSeg;
 
         seg.orientation = tf::createQuaternionMsgFromYaw(s.heading);
         seg.position.x = s.x;
@@ -88,6 +86,24 @@ void waypointsUpdate(const geometry_msgs::PoseArray::ConstPtr& msg) {
 
         segStamped.header = msg->header;
         segStamped.pose = seg;
+
+        pathSeg.x = s.x;
+        pathSeg.y = s.y;
+
+        pathSeg.position = s.position;
+        pathSeg.velocity = s.velocity;
+        pathSeg.acceleration = s.acceleration;
+        pathSeg.jerk = s.jerk;
+
+        pathSeg.heading = s.heading;
+
+        if(i == trajectory_length - 1) {
+            pathSeg.angular_velocity = 0;
+        } else {
+            pathSeg.angular_velocity = (trajectory[i + 1].heading - s.heading) / s.dt;
+        }
+
+        pathSeg.dt = s.dt;
 
         // printf("Time Step: %f\n", s.dt);
         // printf("Coords: (%f, %f)\n", s.x, s.y);
@@ -99,6 +115,7 @@ void waypointsUpdate(const geometry_msgs::PoseArray::ConstPtr& msg) {
         
         pathArr.push_back(segStamped);
         segmentsArr.push_back(seg);
+        pathSegmentsArr.push_back(pathSeg);
     }
 
     geometry_msgs::PoseArray segments;
