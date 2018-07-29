@@ -1,12 +1,17 @@
 #include "ros/ros.h"
+#include "tf/tf.h"
 #include "std_msgs/String.h"
 #include "geometry_msgs/PoseArray.h"
 #include "geometry_msgs/Pose.h"
+#include "geometry_msgs/PoseStamped.h"
+#include "geometry_msgs/Quaternion.h"
+#include "nav_msgs/Path.h"
 using namespace ros;
 
 #include <pathfinder.h>
 
 #include <iostream>
+#include <vector>
 using namespace std;
 
 int sampleCount;
@@ -15,9 +20,74 @@ float maxVel;
 float maxAccel;
 float maxJerk;
 
+Publisher pathPublisher;
+
+double quaternionToYaw(geometry_msgs::Quaternion quaternion) {
+    float x = quaternion.x;
+    float y = quaternion.y;
+    float z = quaternion.z;
+    float w = quaternion.w;
+	tf::Quaternion q(x, y, z, w);
+    tf::Matrix3x3 matrix(q);
+
+    double roll, pitch, yaw;
+    matrix.getRPY(roll, pitch, yaw);
+
+    return yaw;
+}
+
+
+
 void waypointsUpdate(const geometry_msgs::PoseArray::ConstPtr& msg) {
-    cout << msg->poses.size() << endl;
-    cout << msg->poses[0].position.x << endl;
+    cout << "Generating Path" << endl;
+
+	int NUM_POINTS = 3;
+    Waypoint *points = (Waypoint*) malloc(sizeof(Waypoint) * NUM_POINTS);
+
+    for(int i = 0; i < msg->poses.size(); i++) {
+        Waypoint pt = {msg->poses[i].position.x, msg->poses[i].position.y, quaternionToYaw(msg->poses[i].orientation)};
+        points[i] = pt;
+    }
+
+    TrajectoryCandidate candidate;
+    pathfinder_prepare(points, NUM_POINTS, FIT_HERMITE_CUBIC, PATHFINDER_SAMPLES_FAST,
+                        timeStep, maxVel, maxAccel, maxJerk, &candidate);
+
+    int trajectory_length = candidate.length;
+    Segment *trajectory = (Segment*) malloc(trajectory_length * sizeof(Segment));
+    
+    pathfinder_generate(&candidate, trajectory);
+   
+    vector<geometry_msgs::PoseStamped> pathArr;
+
+    for (int i = 0; i < trajectory_length; i++) {
+        Segment s = trajectory[i];
+        
+        geometry_msgs::PoseStamped seg;
+        seg.header = msg->header;
+        seg.pose.orientation = tf::createQuaternionMsgFromYaw(s.heading);
+        seg.pose.position.x = s.x;
+        seg.pose.position.y = s.y;
+        seg.pose.position.z = 0.0;
+
+        // printf("Time Step: %f\n", s.dt);
+        // printf("Coords: (%f, %f)\n", s.x, s.y);
+        // printf("Position (Distance): %f\n", s.position);
+        // printf("Velocity: %f\n", s.velocity);
+        // printf("Acceleration: %f\n", s.acceleration);
+        // printf("Jerk (Acceleration per Second): %f\n", s.jerk);
+        // printf("Heading (radians): %f\n", s.heading);
+        
+        pathArr.push_back(seg);
+    }
+    nav_msgs::Path path;
+    path.header = msg->header;
+    path.poses = pathArr;
+
+    cout << "Publishing path with length " << pathArr.size() << endl;
+    pathPublisher.publish(path);
+
+    free(trajectory);
 }
 
 int main(int argc, char **argv) {
@@ -26,7 +96,7 @@ int main(int argc, char **argv) {
     NodeHandle params("~");
 
     sampleCount = params.param("sample_count", 10000);
-    timeStep = params.param("time_step", 0.02);
+    timeStep = params.param("time_step", 0.05);
     maxVel = params.param("max_velocity", 0.8);
     maxAccel = params.param("max_acceleration", 100000.0);
     maxJerk = params.param("max_jerk", 100000.0);
@@ -42,6 +112,9 @@ int main(int argc, char **argv) {
     cout << "====================================================" << endl;
 
     Subscriber sub = n.subscribe("/pathfinder_ros/waypoints", 1000, waypointsUpdate);
+
+    // Primarily for visualization
+    pathPublisher = n.advertise<nav_msgs::Path>("/pathfinder_ros/path", 1);
 
     ros::spin();
 
