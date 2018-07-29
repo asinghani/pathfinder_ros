@@ -163,9 +163,9 @@ int main(int argc, char **argv) {
     Subscriber sub = n.subscribe("/pathfinder_ros/waypoints", 1000, waypointsUpdate);
 
     // Primarily for visualization
-    pathPublisher = n.advertise<nav_msgs::Path>("/pathfinder_ros/path", 1000);
-    segmentsPublisher = n.advertise<geometry_msgs::PoseArray>("/pathfinder_ros/segments", 1000);
-    pathSegmentsPublisher = n.advertise<pathfinder_ros::Path>("/pathfinder_ros/path_references", 1000);
+    pathPublisher = n.advertise<nav_msgs::Path>("/pathfinder_ros/path", 1000, true);
+    segmentsPublisher = n.advertise<geometry_msgs::PoseArray>("/pathfinder_ros/segments", 1000, true);
+    pathSegmentsPublisher = n.advertise<pathfinder_ros::Path>("/pathfinder_ros/path_references", 1000, true);
 
     ros::spin();
 
