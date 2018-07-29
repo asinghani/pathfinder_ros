@@ -31,3 +31,8 @@ ELSE(${CMAKE_SYSTEM_PROCESSOR} MATCHES "arm")
     target_link_libraries(pathfinder_node ${CMAKE_SOURCE_DIR}/pathfinder_ros/lib/pathfinder/lib/libpathfinder_x86.a)
 ENDIF(${CMAKE_SYSTEM_PROCESSOR} MATCHES "arm")
 
+install(PROGRAMS
+    scripts/path_to_waypoints.py
+    scripts/simple_path_to_nav_goal.py
+    DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+)
