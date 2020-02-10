@@ -150,7 +150,6 @@ int main(int argc, char **argv) {
     maxAccel = params.param("max_acceleration", 100000.0);
     maxJerk = params.param("max_jerk", 100000.0);
 
-    // TODO: replace with proper rosout print
     cout << "====================================================" << endl;
     cout << "Pathfinder Config: " << endl;
     cout << "Sample Count: " << sampleCount << endl;

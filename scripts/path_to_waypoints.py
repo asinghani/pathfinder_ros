@@ -47,7 +47,7 @@ def newPath(path):
     pub.publish(arr)
 
 if __name__ == "__main__":
-    rospy.init_node("publish_waypoints", anonymous=True)
+    rospy.init_node("publish_waypoints", anonymous=False)
 
     pathTopic = rospy.get_param("~path_topic", "/move_base/VoronoiPlanner/plan")
     everyN = rospy.get_param("~every_n", 30)
