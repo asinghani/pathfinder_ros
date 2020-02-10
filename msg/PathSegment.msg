@@ -2,7 +2,7 @@
 float64 x
 float64 y
 
-# Distance travelled (along the path)
+# Distance traveled (along the path)
 float64 position
 float64 velocity
 float64 acceleration
